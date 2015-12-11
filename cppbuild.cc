@@ -1,6 +1,7 @@
 #define PACKAGE "cppbuild"
 #define PACKAGE_VERSION 0.1
 
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <queue>
@@ -9,65 +10,28 @@
 #include <unordered_set>
 #include <vector>
 
-#include <cstdlib>
-#include <dirent.h>
-#include <pwd.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-
 #include <bfd.h>
+#include "libutils/scope/scope.h"
+#include "libutils/file/file.h"
 
-#include "scope.h"
-
-using std::queue;
-using std::string;
-using std::unordered_map;
-using std::unordered_set;
-using std::vector;
+using ::lib::file::FopenOrDie;
+using ::lib::file::GetCurrentHomeDir;
+using ::lib::file::OpenDirOrDie;
+using ::lib::file::ReadFile;
+using ::lib::file::RealPath;
+using ::lib::file::VisitDirEntries;
+using ::std::queue;
+using ::std::string;
+using ::std::unordered_map;
+using ::std::unordered_set;
+using ::std::vector;
 
 static const char* kMainSymName = "_main";
 static const int kCommandScratch = 32;
 
-inline DIR* OpenDirOrDie(const string& dirpath) {
-  auto* dir_handle = opendir(dirpath.c_str());
-  if (dir_handle == nullptr) {
-    std::cerr << "Could not open directory:" << dirpath << std::endl;
-    exit(1);
-  }
-  return dir_handle;
-}
-
-template <class Func>
-inline void VisitDirEntries(DIR* dir_handle, Func f) {
-  auto* dir_entry = readdir(dir_handle);
-  while (dir_entry != nullptr) {
-    f(dir_entry);
-    dir_entry = readdir(dir_handle);
-  }
-}
-
 inline bool ends_with(const string& in, const string& suffix) {
   return in.size() >= suffix.size()
     && in.compare(in.size() - suffix.size(), suffix.size(), suffix) == 0;
-}
-
-inline string GetCurrentHomeDir() {
-  const char* homedir = getenv("HOME");
-  return homedir != nullptr
-    ? string(homedir)
-    : string(getpwuid(getuid())->pw_dir);
-}
-
-inline string RealPath(const std::string& path) {
-  char* resolved = realpath(path.c_str(), nullptr);
-  if (resolved != nullptr) {
-    // std::string makes a copy.
-    string real(resolved);
-    free(resolved);
-    return real;
-  }
-  return "";
 }
 
 inline string GetCppRootDir(int argc, char* argv[]) {
